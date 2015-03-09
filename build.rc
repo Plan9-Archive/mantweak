@@ -1,0 +1,3 @@
+#!/bin/rc
+
+cd src/ && mk install 'BIN=$home/textfix/build'

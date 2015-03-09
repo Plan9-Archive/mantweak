@@ -1,0 +1,15 @@
+</$objtype/mkfile
+
+TARG = 	dropmargin\
+
+
+BIN=/$objtype/bin/textfix
+#HFILES=dhcp.h arp.h glob.h icmp.h telnet.h
+
+UPDATE=\
+	mkfile\
+	$HFILES\
+	${OFILES:%.$O=%.c}\
+	${TARG:%=%.c}\
+
+</sys/src/cmd/mkmany

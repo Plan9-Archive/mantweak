@@ -1,0 +1,9 @@
+#!/bin/rc
+expectedOUT=$0.out
+result=`{cmp <{dropmargin $0.in} <{cat $expectedOUT}}
+rsize=`{echo $result|wc -r}
+if(~ $rsize 0){}
+if not {
+	echo $0 failed: $"result;
+	exit "fail";
+}

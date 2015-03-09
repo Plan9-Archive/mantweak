@@ -1,0 +1,8 @@
+#!/bin/rc
+rfork n
+bind -b ./build /bin
+ok=()
+ko=()
+for(t in tests/*.test){
+	`{$t};
+}
