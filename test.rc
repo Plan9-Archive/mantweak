@@ -3,6 +3,21 @@ rfork n
 bind -b ./build /bin
 ok=()
 ko=()
-for(t in tests/*.test){
-	`{$t};
+for(t in tests/test.*){
+	if(test -x $"t){
+		if(err=`{$t}){
+			ok=($ok "")
+		}
+		if not {
+			echo $err;
+			ko=($ko "")
+		}
+	}
+}
+if(test $#ko -gt 0){
+	echo $#ko tests failed;
+	exit $#ko;
+}
+if not {
+	echo $#ok tests passed
 }

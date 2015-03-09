@@ -11,22 +11,26 @@ int
 marginstop(int readspaces){
 	int i, lvls;
 
+	lvls = levels;
 	if(levstop == nil){
 		levstop = (int*)calloc(levels, sizeof(int));
 	}
-	for(i = 0; i < levels; ++i){
-		if(levstop[i] == 0){
+	for(i = 0; i < levels; ++i) {
+		if (levstop[i] == 0) {
 			levstop[i] = readspaces;
 			return readspaces;
-		} else if(levstop[i] > readspaces) {
-			lvls = levels;
+		} else if (levstop[i] > readspaces) {
 			while(lvls > i){			/* move known stops forward */
 				levstop[--lvls] = levstop[lvls - 1];
 			}
 			levstop[i] = readspaces;	/* introduce the new stop */
 			return readspaces;
-		} else if (levstop[i] == readspaces)
+		} else if (levstop[i] == readspaces) {
+			while(++i < lvls){
+				levstop[i] = 0;		/* reset next levels */
+			}
 			return readspaces;
+		}
 	}
 	return levstop[levels - 1];
 }
@@ -49,13 +53,11 @@ main(int argc, char **argv){
 	int tabstop, rspc;
 
 	levels = 1;
-	if (!tabstop){
-		if(f = getenv("tabstop")){
-			tabstop = atoi(f);
-			free(f);
-		} else {
-			tabstop = 8;
-		}
+	if(f = getenv("tabstop")){
+		tabstop = atoi(f);
+		free(f);
+	} else {
+		tabstop = 8;
 	}
 
 	ARGBEGIN{
