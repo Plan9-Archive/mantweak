@@ -2,8 +2,6 @@
 #include <libc.h>
 #include <bio.h>
 
-// rc(1) cmp(1) mk(1) /sys/src/cmd/col.c
-
 int *levstop;
 int levels;
 
@@ -86,8 +84,6 @@ main(int argc, char **argv){
 	while((ch = Bgetrune(&bin)) != Beof){
 		c = ch;
 		switch(c) {
-		case '\0':
-			break;
 		case '\n':
 			rspc=0;
 			Bputc(&bout, ch);

@@ -1,6 +1,7 @@
 </$objtype/mkfile
 
 TARG = 	dropmargin\
+		spacewidths\
 
 
 BIN=/$objtype/bin/textfix
