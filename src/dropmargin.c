@@ -14,6 +14,8 @@ marginstop(int readspaces){
 		levstop = (int*)calloc(levels, sizeof(int));
 	}
 	for(i = 0; i < levels; ++i) {
+		if (i > 0)
+			--readspaces;				/* leave a one-space margin to levels > 0 */
 		if (levstop[i] == 0) {
 			levstop[i] = readspaces;
 			return readspaces;
