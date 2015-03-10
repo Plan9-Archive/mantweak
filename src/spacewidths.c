@@ -22,14 +22,13 @@ main(int argc, char **argv){
 	long ch;
 	Rune c;
 	int tabstop, rspc;
-
+  
 	if(f = getenv("tabstop")){
 		tabstop = atoi(f);
 		free(f);
 	} else {
 		tabstop = 8;
 	}
-	
 
 	exits(nil);
 }

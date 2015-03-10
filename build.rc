@@ -1,3 +1,4 @@
 #!/bin/rc
 
-cd src/ && mk install 'BIN=$home/textfix/build' && mk clean
+#cd src/ && mk install 'BIN=$home/textfix/build' && mk clean
+mk -f src/mkfile install 'BIN=$home/textfix/build' && mk -f src/mkfile clean
