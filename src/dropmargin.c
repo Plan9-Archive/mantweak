@@ -83,8 +83,8 @@ main(int argc, char **argv) {
 	case 't':
 		f=ARGF();
 		tabstop=atoi(f);
-		if(tabstop < 2 || tabstop & (tabstop -  1))
-			usage("tabstop must be a power of 2.");
+		if(tabstop < 2)
+			usage("tabstop must be a greater than 1.");
 		break;
 	case 'l':
 		f=ARGF();
