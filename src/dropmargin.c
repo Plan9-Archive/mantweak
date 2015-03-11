@@ -45,9 +45,9 @@ marginstop(int readspaces) {
 
 static void
 usage(char *error) {
-	fprint(2, USAGE, argv0);
 	if(error != nil)
 		fprint(2, "invalid argument: %s\n", error);
+	fprint(2, USAGE, argv0);
 	exits("usage");
 }
 

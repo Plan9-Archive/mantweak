@@ -3,15 +3,18 @@
 #include <bio.h>
 #include <draw.h>
 
+#define USAGE "usage: %s [-t tabstop] [-f fontfile]\n"
+
+
 // openfont(2) runestringnwidth(2)
 Font *font;
 
 static void
 usage(char *error)
 {
-	fprint(2, "usage: %s [-t tabstop] [-f fontfile]\n", argv0);
 	if(error != nil)
 		fprint(2, "invalid argument: %s\n", error);
+	fprint(2, USAGE, argv0);
 	exits("usage");
 }
 
