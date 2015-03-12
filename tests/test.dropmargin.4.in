@@ -1,0 +1,9 @@
+			Example with a table that should not be messed up
+
+	SECTION
+		Indented text paragraph
+
+	TABLE
+	Col1		Col2		Col3
+	V1		V2		V3
+					with more text

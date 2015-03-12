@@ -2,5 +2,5 @@
 if(result=`{cmp <{cat $0.in | spacewidths } <{cat $0.out}}){}
 if not {
 	echo $0 failed: $"result;
-	exit "fail";
+	exit "fail";
 }
