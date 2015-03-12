@@ -1,6 +1,7 @@
 #!/bin/rc
 rfork n
-bind -b ./build /bin
+cd ..
+bind -b build /bin
 ok=()
 ko=()
 for(t in tests/test.*){
@@ -15,7 +16,7 @@ for(t in tests/test.*){
 	}
 }
 if(test $#ko -gt 0){
-	echo $#ko tests failed;
+	echo $#ko tests failed - $#ok passed;
 	exit $#ko;
 }
 if not {

@@ -1,0 +1,2 @@
+#!/bin/rc
+cd ../src/ && awd && mk install 'BIN=../build' && mk clean
