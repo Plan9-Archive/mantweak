@@ -76,17 +76,21 @@ readLine(Biobufhdr *bp) {
 	Line *l;
 	char *c;
 	
-	l = (Line *)calloc(1, sizeof(Line));
-	l->level = levels;
 	if(c = Brdstr(bp, '\n', 0))
 	{
+		l = (Line *)malloc(sizeof(Line));
 		l->raw = c;
 		l->len = Blinelen(bp);
-			
+		l->level = 0;
+		l->table = 0;
+		l->content = nil;
+		l->initialspaces = 0;
+		
 		while (*c && !l->table) {
 			switch(*c) {
 			case '\n':
-				l->level=0;
+				if (!l->content)
+					l->content = c;
 				break;
 			case ' ':
 				if (!l->content)
@@ -105,15 +109,25 @@ readLine(Biobufhdr *bp) {
 					l->content = c;
 					l->level = getlevel(l->initialspaces);
 					l->initialspaces -= margin(l);
-					l->len -= l->content - l->raw;
 				}
 				break;
 			}
 			++c;
 		}
+		l->len -= l->content - l->raw;
 		return l;
 	}
 	return nil;
+}
+
+void 
+writeLine(Biobufhdr *bp, Line *l) {
+	if (l->len) {
+		for(int i = 0; i < l->initialspaces; ++i)
+			Bputc(bp, ' ');
+		Bwrite(bp, l->content, l->len);
+		Bflush(bp);
+	}	
 }
 
 void 
@@ -127,7 +141,6 @@ main(int argc, char **argv) {
 	Biobuf bin, bout;
 	char *f;
 	Line *l;
-	int m;
 
 	levels = 1;
 	addnl = 0;
@@ -159,15 +172,15 @@ main(int argc, char **argv) {
 		usage(nil);
 	}ARGEND;
 
-	margins = (int*)calloc(1, levels * sizeof(int));
+	margins = (int*)calloc(levels, sizeof(int));
 
 	Binit(&bin, 0, OREAD);
 	Binit(&bout, 1, OWRITE);
 
 	while(l = readLine(&bin)) {
-		m = margin(l);
-		Bwrite(&bout, l->content + m, l->len - m);
-		Bflush(&bout);
+		if(addnl && prev && prev->level < l->level)
+			Bputc(&bout, '\n');
+		writeLine(&bout, l);
 		if(prev)
 			free(prev);
 		prev = l;
