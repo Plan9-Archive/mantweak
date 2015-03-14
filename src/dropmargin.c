@@ -188,146 +188,30 @@ main(int argc, char **argv) {
 	Binit(&bout, 1, OWRITE);
 
 	while(l = readLine(&bin)) {
-		if(addnl && prev && prev->level < l->level && prev->len > 1)
-			Bputc(&bout, '\n');
+		if(prev && levels > 1) {
+			if(!prev->level && !l->level && l->len > 1 && !l->initialspaces) {
+			/*	section names hold one line, any successive line with the same
+				margin is part of the section body.
+				We change the first level of margin so that the following lines 
+				will be correct
+			*/
+				//updatemargin(1, margins[0]);
+				margins[0] = 1;
+				l->level++;
+			}
+			if(addnl && prev->level < l->level)
+				Bputc(&bout, '\n');
+		}
 		writeLine(&bout, l);
-		if(prev)
-			free(prev);
-		prev = l;
-	}
-}
-
-int
-marginstop(int readspaces) {
-	int i, lvls;
-
-	lvls = levels;
-	if(margins == nil){
-		margins = (int*)calloc(levels, sizeof(int));
-	}
-	for(i = 0; i < levels; ++i) {
-		if (!addnl && i > 0)
-			/* leave a one-space margin to levels > 0 */
-			--readspaces;	
-		if (margins[i] == 0) {
-			margins[i] = readspaces;
-			return readspaces;
-		} else if (margins[i] > readspaces) {
-			/* move known stops forward */
-			while(lvls > i){
-				margins[--lvls] = margins[lvls - 1];
-			}
-			/* introduce the new stop */
-			margins[i] = readspaces;
-			return readspaces;
-		} else if (margins[i] == readspaces) {
-			/* reset next levels */
-			while(++i < lvls){
-				margins[i] = 0;
-			}
-			return readspaces;
+		if(prev){
+			freeLine(prev);
+			prev = nil;
 		}
-	}
-	return margins[levels - 1];
-}
-
-void
-printspaces(Biobuf *bout, int spaces) {
-	while (spaces >= tabstop) {
-		Bputc(bout, '\t');
-		spaces -= tabstop;
-	}
-	while(spaces-- > 0)
-		Bputc(bout, ' ');
-}
-/*
-void
-main(int argc, char **argv) {
-	Biobuf bin, bout;
-	char *f;
-	long ch;
-	Rune c;
-	int rspc, margin, lastm;
-
-	levels = 1;
-	addnl = 0;
-	
-	if(f = getenv("tabstop")){
-		tabstop = atoi(f);
-		free(f);
-	} else {
-		tabstop = 8;
-	}
-
-	ARGBEGIN{
-	case 't':
-		f=ARGF();
-		tabstop=atoi(f);
-		if(tabstop < 2)
-			usage("tabstop must be a greater than 1.");
-		break;
-	case 'l':
-		f=ARGF();
-		levels=atoi(f);
-		if(levels < 1)
-			usage("levels must be greater than 1.");
-		break;
-	case 'n':
-		addnl = 1;
-		break;
-	default:
-		usage(nil);
-	}ARGEND;
-
-
-	rspc = 0;
-	lastm = 0;
-
-	Binit(&bin, 0, OREAD);
-	Binit(&bout, 1, OWRITE);
-	
-	
-	while((ch = Bgetrune(&bin)) != Beof){
-		c = ch;
-		switch(c) {
-		case '\n':
-			rspc=0;
-			lastm = 0;
-			Bputc(&bout, ch);
-			Bflush(&bout);
-			break;
-		case '\t':
-			if (rspc > -1)
-				rspc += tabstop - (rspc % tabstop);
-			else
-				Bputc(&bout, c);
-			break;
-		case ' ':
-			if(rspc > -1)
-				++rspc;
-			else
-				Bputc(&bout, c);
-			break;
-		default:
-			if (rspc > -1) {
-				margin = marginstop(rspc);
-				if (addnl && lastm && margin > lastm)
-					Bputc(&bout, '\n');
-				printspaces(&bout, rspc - margin);
-				lastm = margin;
-				rspc = -1;
-			}
-			Bputrune(&bout, ch);
-			if(f = Brdstr(&bin, '\n', 0)){
-				Bwrite(&bout, f, Blinelen(&bin));
-				Bflush(&bout);
-				free(f);
-				rspc = 0;
-			}
-			break;
-		}
+		if(l->len > 1)
+			prev = l;
+		else
+			freeLine(l);
 	}
 
 	exits(nil);
 }
-	*/
