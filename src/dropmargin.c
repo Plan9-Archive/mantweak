@@ -122,9 +122,19 @@ readLine(Biobufhdr *bp) {
 
 void 
 writeLine(Biobufhdr *bp, Line *l) {
+	int i;
+
+	i = 0;
 	if (l->len) {
-		for(int i = 0; i < l->initialspaces; ++i)
-			Bputc(bp, ' ');
+		while(i < l->initialspaces) {
+			if (l->initialspaces - i > tabstop) {
+				Bputc(bp, '\t');
+				i += tabstop;
+			} else {
+				Bputc(bp, ' ');
+				++i;
+			}
+		}
 		Bwrite(bp, l->content, l->len);
 		Bflush(bp);
 	}	
@@ -178,7 +188,7 @@ main(int argc, char **argv) {
 	Binit(&bout, 1, OWRITE);
 
 	while(l = readLine(&bin)) {
-		if(addnl && prev && prev->level < l->level)
+		if(addnl && prev && prev->level < l->level && prev->len > 1)
 			Bputc(&bout, '\n');
 		writeLine(&bout, l);
 		if(prev)
