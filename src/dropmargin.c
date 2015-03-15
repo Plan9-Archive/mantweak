@@ -124,17 +124,15 @@ void
 writeLine(Biobufhdr *bp, Line *l) {
 	int i;
 
-	i = 0;
+	i = l->initialspaces;
 	if (l->len) {
-		while(i < l->initialspaces) {
-			if (l->initialspaces - i > tabstop) {
-				Bputc(bp, '\t');
-				i += tabstop;
-			} else {
-				Bputc(bp, ' ');
-				++i;
-			}
+		while(i >= tabstop) {
+			Bputc(bp, '\t');
+			i -= tabstop;
 		}
+
+		while(i-- > 0)
+			Bputc(bp, ' ');
 		Bwrite(bp, l->content, l->len);
 		Bflush(bp);
 	}	
@@ -189,17 +187,18 @@ main(int argc, char **argv) {
 
 	while(l = readLine(&bin)) {
 		if(prev && levels > 1) {
-			if(!prev->level && !l->level && l->len > 1 && !l->initialspaces) {
+			if(!prev->level && !l->level && l->len > 1) {
 			/*	section names hold one line, any successive line with the same
 				margin is part of the section body.
 				We change the first level of margin so that the following lines 
 				will be correct
 			*/
 				//updatemargin(1, margins[0]);
-				margins[0] = 1;
+				margins[1] = margins[0];
+				margins[0] = 0;
 				l->level++;
 			}
-			if(addnl && prev->level < l->level)
+			if(addnl && prev->level < l->level && !prev->table)
 				Bputc(&bout, '\n');
 		}
 		writeLine(&bout, l);
