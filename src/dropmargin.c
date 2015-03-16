@@ -76,8 +76,7 @@ readLine(Biobufhdr *bp) {
 	Line *l;
 	char *c;
 	
-	if(c = Brdstr(bp, '\n', 0))
-	{
+	if (c = Brdstr(bp, '\n', 0)) {
 		l = (Line *)malloc(sizeof(Line));
 		l->raw = c;
 		l->len = Blinelen(bp);
@@ -100,21 +99,28 @@ readLine(Biobufhdr *bp) {
 				break;
 			case '\t':
 				if (!l->content)
-					l->initialspaces+=tabstop;
+					l->initialspaces += tabstop;
 				else 
 					l->table = 1;
 				break;
 			default:
 				if (!l->content) {
 					l->content = c;
-					l->level = getlevel(l->initialspaces);
-					l->initialspaces -= margin(l);
 				}
 				break;
 			}
 			++c;
 		}
 		l->len -= l->content - l->raw;
+		if (l->len > 1){
+			if (prev && prev->table) {
+				l->level = prev->level;
+				l->table = prev->table;
+			} else {
+				l->level = getlevel(l->initialspaces);
+			}
+			l->initialspaces -= margin(l);
+		}
 		return l;
 	}
 	return nil;
@@ -130,7 +136,6 @@ writeLine(Biobufhdr *bp, Line *l) {
 			Bputc(bp, '\t');
 			i -= tabstop;
 		}
-
 		while(i-- > 0)
 			Bputc(bp, ' ');
 		Bwrite(bp, l->content, l->len);
