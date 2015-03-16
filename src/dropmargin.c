@@ -109,13 +109,27 @@ findNextColumn(Line *l, char *curr) {
 }
 
 int
+isSectionHeader(Line * l) {
+	char *c;
+
+	if (l->level > 0 || l->len < 2)
+		return 0;
+	c = l->content;
+	while(*c && (isspace(*c) || isupper(*c)))
+		++c;
+	return *c == 0;
+}
+
+int
 checkTable(Line *l) {
 	Column *col;
 	char *c;
 	int p;
+	Rune r;
+
+	col = table;
 	if (table && l->len > 1) {
 		p = 0;
-		col = table;
 		c = l->content;
 		do
 		{
@@ -128,10 +142,11 @@ checkTable(Line *l) {
 					return 0;
 				else
 					col = col->next;
+			c += chartorune(&r, c);
 		}
-		while(*c++ && col && col->next);
+		while(*c && col && col->next);
 	}
-	return table != nil;
+	return table && (!col->next || !isSectionHeader(l));
 }
 
 void
@@ -194,7 +209,7 @@ readLine(Biobufhdr *bp) {
 		else if (l->len > 1)
 			l->level = getlevel(l->initialspaces);
 		l->initialspaces -= margin(l);
-		/*
+		/* *
 		fprint(2, "l->content		%s", l->content);
 		fprint(2, "l->len			%d\n", l->len);
 		fprint(2, "l->level			%d\n", l->level);
@@ -203,7 +218,7 @@ readLine(Biobufhdr *bp) {
 		for(int i = 0; i < levels; ++i)
 			fprint(2, "margins[%d]		%d\n", i, margins[i]);
 		fprint(2, "\n");
-		*/
+		* */
 		return l;
 	}
 	return nil;
@@ -310,6 +325,14 @@ main(int argc, char **argv) {
 				Bputc(&bout, '\n');
 		}
 		writeLine(&bout, l);
+		if (table && !l->table) {
+			freeTable(table);
+			table = nil;
+		}
+		if (isSectionHeader(l)) {
+			for(int i = levels; i > 0; --i)
+				margins[i] = 0;
+		}
 		if(prev){
 			freeLine(prev);
 			prev = nil;
@@ -319,6 +342,15 @@ main(int argc, char **argv) {
 		else
 			freeLine(l);
 	}
+/*
+	Column *t = table;
+	int j = 0;
+	while(table) {
+		fprint(2, "column[%d]		%d\n", j++, table->position);
+		table = table->next;
+	}
 
+	freeTable(t);
+*/
 	exits(nil);
 }

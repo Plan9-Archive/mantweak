@@ -8,3 +8,7 @@
 	V1		V2		V3
 					with more text
 	V4		V5		V6
+
+	ANOTHER SECTION
+		More indented text on
+		many lines that should be moved to the left.

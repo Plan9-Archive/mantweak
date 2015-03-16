@@ -1,0 +1,54 @@
+sizeofLine = 24;
+aggr Line
+{
+	'D' 0 level;
+	'D' 4 initialspaces;
+	'D' 8 table;
+	'D' 12 len;
+	'X' 16 raw;
+	'X' 20 content;
+};
+
+defn
+Line(addr) {
+	complex Line addr;
+	print("	level	", addr.level, "\n");
+	print("	initialspaces	", addr.initialspaces, "\n");
+	print("	table	", addr.table, "\n");
+	print("	len	", addr.len, "\n");
+	print("	raw	", addr.raw\X, "\n");
+	print("	content	", addr.content\X, "\n");
+};
+
+sizeofColumn = 8;
+aggr Column
+{
+	'D' 0 position;
+	'A' Column 4 next;
+};
+
+defn
+Column(addr) {
+	complex Column addr;
+	print("	position	", addr.position, "\n");
+	print("	next	", addr.next\X, "\n");
+};
+
+complex Font font;
+complex Line prev;
+complex Column table;
+complex Line margin:l;
+complex Line findNextColumn:l;
+complex Column findNextColumn:last;
+complex Line isSectionHeader:l;
+complex Line checkTable:l;
+complex Column checkTable:col;
+complex Column freeTable:t;
+complex Biobufhdr readLine:bp;
+complex Line readLine:l;
+complex Biobufhdr writeLine:bp;
+complex Line writeLine:l;
+complex Line freeLine:ln;
+complex Biobuf main:bin;
+complex Biobuf main:bout;
+complex Line main:l;
