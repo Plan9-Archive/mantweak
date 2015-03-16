@@ -1,4 +1,5 @@
 #!/bin/rc
+tabstop=8
 if(result=`{cmp <{cat $0.in | dropmargin } <{cat $0.out}}){}
 if not {
 	echo $0 failed: $"result;

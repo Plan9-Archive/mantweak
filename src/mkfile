@@ -1,7 +1,7 @@
 </$objtype/mkfile
 
 TARG = 	dropmargin\
-		#spacewidths\
+		spacewidths\
 
 
 BIN=/$objtype/bin/mantweak
