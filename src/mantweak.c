@@ -25,6 +25,7 @@ struct Line
 {
 	enum LineType type;
 	int initialspaces;
+	int margin;
 	int len;			/* length in chars */
 	char *raw;
 	char *content;
@@ -34,7 +35,7 @@ typedef struct Column Column;
 struct Column
 {
 	int size;			/* number of Runes */
-	int width;		/* pixels */
+	int width;			/* pixels */
 	Column *next;
 };
 
@@ -47,6 +48,7 @@ debugLine(Line *l, char *topic)
 {
 	fprint(2, "\t%s\n", topic);
 	fprint(2, "l->content		%s", l->content);
+	fprint(2, "l->margin		%d\n", l->margin);
 	fprint(2, "l->len			%d\n", l->len);
 	//fprint(2, "l->level			%d\n", l->level);
 	fprint(2, "l->type		%d\n", l->type);
@@ -57,7 +59,7 @@ debugLine(Line *l, char *topic)
 }
 
 void
-setMargin(int level, int spaces) {
+setMarginSize(int level, int spaces) {
 	margins[level] = spaces;
 	if(!addnl)
 		/*	by subtracting level to margins[level]
@@ -67,11 +69,10 @@ setMargin(int level, int spaces) {
 		margins[level] -= level;
 }
 
-/*	updates margins[] and reduce l->initialspaces according.
-	returns the index in margins[] of number of spaces removed.
+/*	updates margins[] and set l->mrgin according.
  */
 void
-cutMargin(Line *l)
+setMargin(Line *l)
 {
 	int i, j;
 
@@ -83,31 +84,37 @@ cutMargin(Line *l)
 		if(margins[0] == 0 || l->initialspaces < margins[0]){
 			margins[0] = l->initialspaces;
 		}
-	case Text:
 	case Table:
-		for(i = 0; i < levels; ++i) {
-			if(margins[i] == 0) {
-				setMargin(i, l->initialspaces);
-				l->initialspaces = 0;
-			}else if(margins[i] > l->initialspaces) {
+		if(prev && prev->type == Table)
+			l->margin = prev->margin;
+	case Text:
+		i = 0;
+		while(!l->margin && i < levels){
+			if(margins[i] == 0){
+				setMarginSize(i, l->initialspaces);
+				l->margin = margins[i];
+			}else if(margins[i] > l->initialspaces){
 				/* move known stops forward */
 				for(j = levels - 1; j > i; --j)
 					margins[j] = margins[j-1];
 				/* introduce the new stop */
-				setMargin(i, l->initialspaces);
-				l->initialspaces = 0;
-			}else if (margins[i] == l->initialspaces) {
+				setMarginSize(i, l->initialspaces);
+				l->margin = margins[i];
+			}else if (margins[i] == l->initialspaces){
 				/* reset next levels */
 				for(j = levels - 1; j > i; --j)
 					margins[j] = 0;
-				l->initialspaces = 0;
-			}
-			if (l->initialspaces == 0)
-				return;
+				l->margin = margins[i];
+			}else
+				++i;
 		}
+		
+		if(!l->margin)
+			l->margin = margins[levels - 1];
+		break;
 	}
-	l->initialspaces -= margins[levels - 1];
 }
+
 
 void
 freeTable(Column *t)
@@ -131,6 +138,7 @@ readLine(Biobufhdr *bp)
 		l->type = Empty;
 		l->content = nil;
 		l->initialspaces = 0;
+		l->margin = 0;
 		
 		while(*c && !l->content){
 			switch(*c){
@@ -175,9 +183,10 @@ readLine(Biobufhdr *bp)
 	return l;
 }
 
-void _writeLine(Biobufhdr *bp, Line *l) {
+void 
+_writeLine(Biobufhdr *bp, Line *l) {
 	int i;
-	i = l->initialspaces;
+	i = l->initialspaces - l->margin;
 	if (l->len) {
 		while(i >= tabstop) {
 			Bputc(bp, '\t');
@@ -188,13 +197,14 @@ void _writeLine(Biobufhdr *bp, Line *l) {
 		Bwrite(bp, l->content, l->len);
 		Bflush(bp);
 	}
-}	
+}
 
+// TODO: collapse writeLine and _writeLine
 void 
 writeLine(Biobufhdr *bp, Line *l) {
 	switch(l->type){
 	case Empty:
-		fprint(2, "writeLine: added new line for Empty\n");
+		//fprint(2, "writeLine: added new line for Empty\n");
 		Bputc(bp, '\n');
 		break;
 	case SectionTitle:
@@ -278,9 +288,9 @@ parseArguments(int argc, char **argv)
 	}ARGEND;
 }
 
-#define INDENTATIONCOLLAPSED (prev && l->type != Empty && \
-			l->type != prev->type && \
-			l->initialspaces == prev->initialspaces)
+#define INDENTATIONCOLLAPSED(l,p) (p && l->type != Empty && \
+		l->type != p->type && \
+		l->initialspaces - l->margin == p->initialspaces - p->margin)
 
 void
 main(int argc, char **argv)
@@ -297,14 +307,12 @@ main(int argc, char **argv)
 	Binit(&bout, 1, OWRITE);
 
 	while(l = readLine(&bin)) {
-		cutMargin(l);
-		if(prev)
-			fprint(2, "prev is defined\n");
-		else
-			fprint(2, "prev is nil\n");
-		debugLine(l, "cutMargin");
-		if(addnl && INDENTATIONCOLLAPSED) {
-			fprint(2, "main: added new line for addnl\n");
+		if(prev && prev->type == Table && l->type != Empty)
+			l->type = Table;
+		setMargin(l);
+		//debugLine(l, "setMargin");
+		if(addnl && INDENTATIONCOLLAPSED(l, prev)) {
+			//fprint(2, "main: added new line for addnl\n");
 			Bputc(&bout, '\n');
 		}
 		writeLine(&bout, l);
