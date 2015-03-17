@@ -96,12 +96,15 @@ findNextColumn(Line *l, char *curr) {
 	last = table;
 	while(last->next)
 		last=last->next;
-	while(*curr == ' ' || *curr == '\t')
-		++curr;
 	last->next = (Column *)malloc(sizeof(Column));
 	last = last->next;
 	last->position = curr - l->content;
 	last->next = nil;
+	while(isspace(*curr) || ispunct(*curr))
+		if (*curr++ == '\t') 
+			last->position += tabstop - last->position % tabstop;
+		else
+			last->position++;
 	return curr-1;	/* readline will increment with chartorune(2) */
 }
 
@@ -109,13 +112,24 @@ int
 checkTable(Line *l) {
 	Column *col;
 	char *c;
-	col = table;
+	int p;
 	if (table && l->len > 1) {
-		while((col = col->next) && l->len > col->position) {
-			c = l->content + (col->position - 1);
-			if (!isspace(*c) && !ispunct(*c))
-				return 0;
+		p = 0;
+		col = table;
+		c = l->content;
+		do
+		{
+			if(*c == '\t')
+				p += tabstop - p % tabstop;
+			else 
+				p++;
+			if (p == col->next->position - 1)
+				if (!isspace(*c) && !ispunct(*c))
+					return 0;
+				else
+					col = col->next;
 		}
+		while(*c++ && col && col->next);
 	}
 	return table != nil;
 }
@@ -160,7 +174,7 @@ readLine(Biobufhdr *bp) {
 				break;
 			case '\t':
 				if (!l->content)
-					l->initialspaces += tabstop;
+					l->initialspaces += tabstop - (l->initialspaces % tabstop);
 				else if (!prev->table)
 					c = findNextColumn(l, c);
 				else
@@ -177,17 +191,19 @@ readLine(Biobufhdr *bp) {
 		l->table = checkTable(l);
 		if (l->table && prev && prev->table)
 			l->level = prev->level;
-		else
+		else if (l->len > 1)
 			l->level = getlevel(l->initialspaces);
 		l->initialspaces -= margin(l);
-		
+		/*
 		fprint(2, "l->content		%s", l->content);
 		fprint(2, "l->len			%d\n", l->len);
 		fprint(2, "l->level			%d\n", l->level);
 		fprint(2, "l->table		%d\n", l->table);
 		fprint(2, "l->initialspaces	%d\n", l->initialspaces);
+		for(int i = 0; i < levels; ++i)
+			fprint(2, "margins[%d]		%d\n", i, margins[i]);
 		fprint(2, "\n");
-		
+		*/
 		return l;
 	}
 	return nil;
@@ -270,7 +286,7 @@ main(int argc, char **argv) {
 		usage(nil);
 	}ARGEND;
 
-	fprint(2, "tabstop = %d\n\n", tabstop);
+	//fprint(2, "tabstop = %d\n\n", tabstop);
 
 	margins = (int*)calloc(levels, sizeof(int));
 
