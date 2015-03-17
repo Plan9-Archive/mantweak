@@ -181,7 +181,7 @@ readLine(Biobufhdr *bp) {
 				if (!l->content)
 					l->initialspaces++;
 				else if (*(c-1) == ' ') {
-					if (!prev->table)
+					if (prev && !prev->table)
 						c = findNextColumn(l, c);
 					else
 						l->table = 1;
@@ -190,7 +190,7 @@ readLine(Biobufhdr *bp) {
 			case '\t':
 				if (!l->content)
 					l->initialspaces += tabstop - (l->initialspaces % tabstop);
-				else if (!prev->table)
+				else if (prev && !prev->table)
 					c = findNextColumn(l, c);
 				else
 					l->table = 1;
