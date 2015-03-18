@@ -1,0 +1,90 @@
+MAN(6)                                                     MAN(6)
+
+NAME
+
+man - macros to typeset manual
+
+SYNOPSIS
+
+nroff -man file ...
+
+troff -man file ...
+
+DESCRIPTION
+
+These macros are used to format pages of this manual.
+
+Except in `.LR' and `.RL' requests, any text argument
+denoted t in the request summary may be zero to six words.
+Quotes " ... " may be used to include blanks in a `word'.
+If t is empty, the special treatment is applied to the next
+text input line (the next line that doesn't begin with dot).
+In this way, for example, .I may be used to italicize a line
+of more than 6 words, or .SM followed by .B to make small
+letters in `bold' font.
+
+A prevailing indent distance is remembered between succes-
+sive indented paragraphs, and is reset to default value upon
+
+reaching a non-indented paragraph.  Default units for
+indents i are ens.
+
+The fonts are
+
+R	roman, the main font, preferred for diagnostics
+I	italic, preferred for parameters, short names of com-
+	mands, names of manual pages, and naked function names
+`B'	`bold', actually the constant width font, preferred for
+	examples, file names, declarations, keywords, names of
+	struct members, and literals (numbers are rarely liter-
+	als)
+L	also the constant width font.  In troff L=B; in nroff
+	arguments of the macros .L, .LR, and .RL are printed in
+	quotes; preferred only where quotes really help (e.g.
+	lower-case literals and punctuation).
+
+Type font and size are reset to default values before each
+paragraph, and after processing font- or size-setting mac-
+ros.
+
+The -man macros admit equations and tables in the style of
+eqn(1) and tbl(1), but do not support arguments on .EQ and
+.TS macros.
+
+These strings are predefined by -man:
+
+\*R	`(Reg)', trademark symbol in troff.
+\*S	Change to default type size.
+
+FILES
+
+/sys/lib/tmac/tmac.an
+
+SEE ALSO
+
+troff(1), man(1)
+
+REQUESTS
+
+Request	Cause	If no		Explanation
+		Break	Argument
+.B t		no		t=n.t.l.*		Text t is `bold'.
+.BI t	no		t=n.t.l.		Join words of t alternating bold and
+							italic.
+.BR t	no		t=n.t.l.		Join words of t alternating bold and
+							Roman.
+.DT		no					Restore default tabs.
+.EE		yes					End displayed example
+.EX		yes					Begin displayed example
+.HP i	yes		i=p.i.*		Set prevailing indent to i. Begin para-
+							graph with hanging indent.
+
+* n.t.l. = next text line; p.i. = prevailing indent
+
+BUGS
+
+There's no way to fool troff into handling literal double
+quote marks " in font-alternation macros, such as `.BI'.
+There is no direct way to suppress column widows in 2-column
+output; the column lengths may be adjusted by inserting
+`.sp' requests before the closing `.1C'.

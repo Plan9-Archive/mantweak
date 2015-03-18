@@ -1,9 +1,0 @@
-The following table is made with spaces, but with a variable-width font, looks misaligned:
-
-  Name     Surname    Age
-  Giacomo  Tesio      35
-  Sara     Bertolotto 31
-  Beatrice Tesio      1
-  Miriam   Tesio      6
-
-Note that subsequent text is not aligned.

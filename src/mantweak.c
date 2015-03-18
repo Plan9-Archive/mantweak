@@ -38,10 +38,21 @@ struct Column
 	int width;			/* pixels */
 	Column *next;
 };
+typedef struct Row Row;
+struct Row
+{
+	Line *line;
+	Row *prev;
+};
 
 int *margins;		/* spaces for each level of margin */
 Line *prev; 		/* previous line read */
-Column *table;	/* structure of the current table (if any) */
+Column *tStruct;	/* structure of the current table (if any) */
+Row *table;		/* linked list of table's line read (from the last) */
+
+
+
+
 
 void
 debugLine(Line *l, char *topic)
@@ -217,7 +228,6 @@ writeLine(Biobufhdr *bp, Line *l) {
 	}
 }
 
-
 void 
 freeLine(Line * ln) {
 	free(ln->raw);
@@ -292,6 +302,10 @@ parseArguments(int argc, char **argv)
 		l->type != p->type && \
 		l->initialspaces - l->margin == p->initialspaces - p->margin)
 
+#define TABLECONTINUES(l,p) (p && p->type == Table && \
+		l->type != Empty && \
+		l->initialspaces >= prev->initialspaces)
+
 void
 main(int argc, char **argv)
 {
@@ -307,7 +321,7 @@ main(int argc, char **argv)
 	Binit(&bout, 1, OWRITE);
 
 	while(l = readLine(&bin)) {
-		if(prev && prev->type == Table && l->type != Empty)
+		if(TABLECONTINUES(l, prev))
 			l->type = Table;
 		setMargin(l);
 		//debugLine(l, "setMargin");
@@ -317,7 +331,7 @@ main(int argc, char **argv)
 		}
 		writeLine(&bout, l);
 		if (table && l->type != Table) {
-			freeTable(table);
+			//freeTable(table);
 			table = nil;
 		}
 		if(prev){
