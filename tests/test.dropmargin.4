@@ -1,5 +1,5 @@
 #!/bin/rc
-if(result=`{cmp <{cat $0.in | mantweak -l 2 -n } <{cat $0.out}}){}
+if(result=`{cmp <{cat $0.in | mantweak -l 2 -n -f } <{cat $0.out}}){}
 if not {
 	echo $0 failed: $"result;
 	exit "fail";

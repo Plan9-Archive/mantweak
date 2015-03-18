@@ -4,7 +4,7 @@
 #include <bio.h>
 #include <draw.h>
 
-// openfont(2) runestringnwidth(2) /sys/src/
+// openfont(2) runestringnwidth(2) utflen(2)
 #define USAGE "usage: %s [-t tabstop] [-l levels] [-n] [-f font]\n"
 
 int levels;
@@ -17,7 +17,7 @@ enum LineType
 	Empty,			/* only spaces, tabs or newline */
 	Text,
 	SectionTitle,
-	Table
+	TableLine
 };
 
 typedef struct Line Line;
@@ -31,28 +31,33 @@ struct Line
 	char *content;
 };
 
+typedef void (*LineHandler)(Biobufhdr *bp, Line *);
+
 typedef struct Column Column;
 struct Column
 {
-	int size;			/* number of Runes */
-	int width;			/* pixels */
+	int size;		/* number of Runes */
+	int width;	/* pixels */
 	Column *next;
 };
 typedef struct Row Row;
 struct Row
 {
 	Line *line;
-	Row *prev;
+	Row *next;
+};
+typedef struct Table Table;
+struct Table
+{
+	int nrows;		/* rows count */
+	Row *rows;		/* linked list of rows */
+	Column *columns;	/* linked list of detected columns */
+	int maxutflen;		/* max utflen(2) of lines (used in detectColumns) */
 };
 
 int *margins;		/* spaces for each level of margin */
 Line *prev; 		/* previous line read */
-Column *tStruct;	/* structure of the current table (if any) */
-Row *table;		/* linked list of table's line read (from the last) */
-
-
-
-
+Table *table;		/* current table (if any) */
 
 void
 debugLine(Line *l, char *topic)
@@ -68,6 +73,166 @@ debugLine(Line *l, char *topic)
 			fprint(2, "margins[%d]		%d\n", i, margins[i]);
 		fprint(2, "\n");
 }
+
+int
+runeWidth(Rune r){
+	static int *cache;
+	Rune i;
+	
+	assert(font != nil);
+	
+	if(cache == nil){
+		cache = (int *)calloc(Runeself, sizeof(int));
+		for(i = 32; i < Runeself; ++i)
+			cache[i] = runestringnwidth(font, &i, 1);
+		fprint(2, "runeWidth: cache initialized\n");
+	}
+	if(r < Runeself)
+		return cache[r];
+	return runestringnwidth(font, &r, 1);
+}
+
+void
+updateTable(Line *line){
+	static Row *last;
+	Row *newRow;
+	int llen;
+
+	assert(line->type == TableLine);
+
+	//debugLine(line, "updateTable");
+
+	newRow = (Row *)malloc(sizeof(Row));
+	newRow->line = line;
+	newRow->next = nil;
+	if(table == nil){
+		table = (Table *)malloc(sizeof(Table));
+		table->nrows = 1;
+		table->maxutflen = 0;
+		table->columns = nil;
+		table->rows = newRow;
+	}else{
+		last->next = newRow;
+		++table->nrows;
+	}
+	last = newRow;
+	llen = utflen(line->content);
+	if(table->maxutflen < llen)
+		table->maxutflen = llen;
+}
+
+Column *
+detectColumns(Row *rows, int maxutflen){
+	int *nonspaces;	/* nonspaces[i] == 0 => i'th rune separate words in all rows */
+	int *runewidths;	/* max pixel width of runes at i at each row */
+	Rune r;
+	char *c;
+	int i, j, w, consumed;
+	Column *list, *last;
+	
+	nonspaces = (int *)calloc(maxutflen, sizeof(int));
+	runewidths = (int *)calloc(maxutflen, sizeof(int));
+	while(rows){
+		i = 0;
+		c = rows->line->content;
+		while(*c){
+			consumed = chartorune(&r, c);
+			if(r == '\t'){
+				// all widths up to tabstop must be at equal to 1em
+				w = runeWidth(0x2003);
+				for(j = i; j % tabstop > 0; ++j)
+					if(runewidths[j] < w)
+						runewidths[j] = w;
+			}else{
+				w = runeWidth(r);
+				if(runewidths[i] < w)
+					runewidths[i] = w;
+			}
+			if(nonspaces[i] == 0){
+				if(consumed == 1){
+					if(*c == '\t')
+						/* we have a few spaces to skip */
+						i += tabstop - i % tabstop;
+					else
+						nonspaces[i++] = !ispunct(*c) && !isspace(*c);
+				}else
+					nonspaces[i++] = !isspacerune(r);
+			}else
+				++i;		/* already found a word character in i */
+			
+			c += consumed;
+		}
+		rows = rows->next;
+	}
+	
+	list = (Column *)malloc(sizeof(Column));
+	list->size = 0;
+	list->width = 0;
+	list->next = nil;
+	last = list;
+	
+	for(i = 0; i < maxutflen - 1; ++i){
+		++last->size;
+		last->width += runewidths[i];
+		if(!nonspaces[i] && nonspaces[i+1]){
+			/* a new column starts at i+1 */
+			last->next = (Column *)malloc(sizeof(Column));
+			last = last->next;
+			last->size = 0;
+			last->width = 0;
+			last->next = nil;
+		}
+	}
+	
+	return list;
+}
+
+void
+writeTable(void){
+
+	if(!table->columns)
+		table->columns = detectColumns(table->rows, table->maxutflen);
+
+	debugLine(table->rows->line, "writeTable");
+	fprint(2, "table->nrows = %d,	table->maxutflen = %d\n",table->nrows,table->maxutflen);
+
+	Column *t = table->columns;
+	int j = 0;
+	while(t) {
+		fprint(2, "column[%d]	size: %d,	width: %d\n", j++, t->size, t->width);
+		t = t->next;
+	}
+}
+
+void 
+freeLine(Line * ln) {
+	free(ln->raw);
+	free(ln);
+}
+
+void
+freeTable(void)
+{
+	void *p;
+	Column *c;
+	Row *r;
+	
+	c = table->columns;
+	while(c){
+		p = c;
+		c = c->next;
+		free(p);
+	}
+	r = table->rows;
+	while(r){
+		freeLine(r->line);
+		p = r;
+		r = r->next;
+		free(p);
+	}
+	free(table);
+}
+
 
 void
 setMarginSize(int level, int spaces) {
@@ -95,8 +260,8 @@ setMargin(Line *l)
 		if(margins[0] == 0 || l->initialspaces < margins[0]){
 			margins[0] = l->initialspaces;
 		}
-	case Table:
-		if(prev && prev->type == Table)
+	case TableLine:
+		if(prev && prev->type == TableLine)
 			l->margin = prev->margin;
 	case Text:
 		i = 0;
@@ -126,14 +291,6 @@ setMargin(Line *l)
 	}
 }
 
-
-void
-freeTable(Column *t)
-{
-	if(t->next)
-		freeTable(t->next);
-	free(t);
-}
 
 Line *
 readLine(Biobufhdr *bp)
@@ -173,20 +330,21 @@ readLine(Biobufhdr *bp)
 		l->len -= l->content - l->raw;
 		if(l->len > 1){
 			/*	SectionTitles = lines without lowercase runes 
-				Table = lines with tabs or multiple subsequent spaces 
+				TableLine = lines with tabs or multiple subsequent spaces 
 				Text = anything else
 			 */
 			r = 0; p = 0;
 			l->type = SectionTitle;
-			while(*c && l->type != Table){
+			while(*c && l->type != TableLine){
 				c += chartorune(&r, c);
 				if (r == '\t' || (isspacerune(r) && isspacerune(p)))
-					l->type = Table;
+					l->type = TableLine;
 				else if(l->type == SectionTitle && islowerrune(r))
 					l->type = Text;
 				p = r;
 			}
-		}
+		}else
+			l->initialspaces = 0;
 		//debugLine(l, "readLine");
 	} else
 		l = nil;
@@ -195,7 +353,7 @@ readLine(Biobufhdr *bp)
 }
 
 void 
-_writeLine(Biobufhdr *bp, Line *l) {
+writeLine(Biobufhdr *bp, Line *l) {
 	int i;
 	i = l->initialspaces - l->margin;
 	if (l->len) {
@@ -211,6 +369,7 @@ _writeLine(Biobufhdr *bp, Line *l) {
 }
 
 // TODO: collapse writeLine and _writeLine
+/*
 void 
 writeLine(Biobufhdr *bp, Line *l) {
 	switch(l->type){
@@ -218,21 +377,17 @@ writeLine(Biobufhdr *bp, Line *l) {
 		//fprint(2, "writeLine: added new line for Empty\n");
 		Bputc(bp, '\n');
 		break;
-	case SectionTitle:
-		_writeLine(bp, l);
+	case TableLine:
+		if(!font)
+			_writeLine(bp, l);
 		break;
+	case SectionTitle:
 	case Text:
-	case Table:
 		_writeLine(bp, l);
 		break;
 	}
 }
-
-void 
-freeLine(Line * ln) {
-	free(ln->raw);
-	free(ln);
-}
+*/
 
 static void
 usage(char *error)
@@ -293,6 +448,7 @@ parseArguments(int argc, char **argv)
 			if(!font)
 				usage("can't open font file.");
 		}
+		break;
 	default:
 		usage(nil);
 	}ARGEND;
@@ -302,18 +458,64 @@ parseArguments(int argc, char **argv)
 		l->type != p->type && \
 		l->initialspaces - l->margin == p->initialspaces - p->margin)
 
-#define TABLECONTINUES(l,p) (p && p->type == Table && \
+#define TABLECONTINUES(l,p) (p && p->type == TableLine && \
 		l->type != Empty && \
 		l->initialspaces >= prev->initialspaces)
+
+void
+handleLineOnFixedWidthFont(Biobufhdr *bp, Line *l){
+	writeLine(bp, l);
+	if(prev){
+		freeLine(prev);
+		prev = nil;
+	}
+	if(l->type == Empty)
+		freeLine(l);
+	else
+		prev = l;	
+}
+
+void
+handleLineOnVariableWidthFont(Biobufhdr *bp, Line *l){
+	if(l->type == TableLine){
+		updateTable(l);
+	}else{
+		if(table){
+			writeTable();
+			freeTable();
+			prev = nil;	/* prev has already been freed */
+			table = nil;
+		}
+		writeLine(bp, l);
+	}
+	if(prev){
+		if(l->type != TableLine)
+			freeLine(prev);
+		prev = nil;
+	}
+	if(l->type == Empty)
+		freeLine(l);
+	else
+		prev = l;	
+}
 
 void
 main(int argc, char **argv)
 {
 	Biobuf bin, bout;
 	Line *l;
+	LineHandler handleLine;
 
 	parseArguments(argc, argv);
 	//fprint(2, "tabstop = %d\n\n", tabstop);
+
+	/*	to keep code simple, use different logic
+		with or without font */
+
+	if(font)
+		handleLine = handleLineOnVariableWidthFont;
+	else
+		handleLine = handleLineOnFixedWidthFont;
 
 	margins = (int*)calloc(levels, sizeof(int));
 
@@ -322,36 +524,16 @@ main(int argc, char **argv)
 
 	while(l = readLine(&bin)) {
 		if(TABLECONTINUES(l, prev))
-			l->type = Table;
+			l->type = TableLine;
 		setMargin(l);
-		//debugLine(l, "setMargin");
 		if(addnl && INDENTATIONCOLLAPSED(l, prev)) {
-			//fprint(2, "main: added new line for addnl\n");
 			Bputc(&bout, '\n');
 		}
-		writeLine(&bout, l);
-		if (table && l->type != Table) {
-			//freeTable(table);
-			table = nil;
-		}
-		if(prev){
-			freeLine(prev);
-			prev = nil;
-		}
-		if(l->type != Empty)
-			prev = l;
-		else
-			freeLine(l);
+		handleLine(&bout, l);
 	}
-/*
-	Column *t = table;
-	int j = 0;
-	while(table) {
-		fprint(2, "column[%d]		%d\n", j++, table->position);
-		table = table->next;
+	if(font && table){
+		/* a table is still waiting to be printed */
+		writeTable();
 	}
-
-	freeTable(t);
-*/
 	exits(nil);
 }
