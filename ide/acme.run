@@ -1,4 +1,6 @@
 win Build
 win RunTest
 
+8c -a ../src/mantweak.c > ../build/mantweak.acid
+
 win ls *

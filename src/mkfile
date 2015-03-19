@@ -1,7 +1,6 @@
 </$objtype/mkfile
 
-TARG = 	dropmargin\
-		mantweak\
+TARG = 	mantweak\
 
 
 BIN=/$objtype/bin/mantweak
