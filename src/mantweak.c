@@ -7,10 +7,14 @@
 // openfont(2) runestringnwidth(2) utflen(2)
 #define USAGE "usage: %s [-t tabstop] [-l levels] [-n] [-f font]\n"
 
+/* the following variables are set only by parseArguments */
 int levels;
 int addnl;	/* -n */
 int tabstop;
 Font *font;	/* $font of -f font, but nil if -f does not have an path */
+int zerowidth;	/* if font!=nil, size in pixel of one "0" */
+int tabwidth;	/* if font!=nil, zerowidth * tabstop */
+int spcwidth;	/* if font!=nil, size in pixel of one ASCII space */
 
 enum LineType 
 {
@@ -268,34 +272,49 @@ updateTable(Line *line){
 
 Column *
 detectColumns(Row *rows, int nrows, int maxutflen){
-	int *nondelim;	/*	1 => not a column delimiters */
+	int *nondelim;	/*	1 => not a column delimiter */
 	int *runewidths;	/*	max pixel width of runes at i at each row */
 	Rune r;
 	char *c;
 	int i, j, w, consumed;
 	Column *list, *last;
 	
-	if(nrows < 2)
+	if(nrows == 1)
 		return nil;	/*  1 row => not a table */
 
 	nondelim = (int *)calloc(maxutflen, sizeof(int));
 	runewidths = (int *)calloc(maxutflen, sizeof(int));
 	while(rows){
+		/* This implementation count initial spaces as 1em each
 		i = 0;
+		j = rows->line->initialspaces - rows->line->margin;
+		while(i < j){
+			if(runewidths[i] < zerowidth)
+				runewidths[i] = zerowidth;
+			++i;
+		}
+		* but a simpler one just skip such spaces counting them
+		* as 0px. In some cases this could reduce the first column
+		* width a bit.
+		* Thus set i to index of the first non space character:
+		*/
+		i = rows->line->initialspaces - rows->line->margin;
 		c = rows->line->content;
 		while(*c){
 			consumed = chartorune(&r, c);
+			
+			/* register rune width */
 			if(r == '\t'){
 				/* widths up to tabstop are at least 1em */
-				w = runeWidth(0x2003);
 				for(j = i; j % tabstop > 0; ++j)
-					if(runewidths[j] < w)
-						runewidths[j] = w;
-			}else{
+					if(runewidths[j] < zerowidth)
+						runewidths[j] = zerowidth;
+			}else if(*c != '\n'){
 				w = runeWidth(r);
 				if(runewidths[i] < w)
 					runewidths[i] = w;
 			}
+			/* register if rune at i is not a delimiter */
 			if(nondelim[i] == 0){
 				if(consumed == 1){
 					if(*c == '\t')
@@ -319,8 +338,8 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 		}
 		rows = rows->next;
 	}
-	
-	if(nrows < 3)	/* 2 rows => cannot detect one space delim */
+
+	if(nrows == 2)	/* 2 rows => cannot detect one space delim */
 		for(i = 0; i < maxutflen - 2; ++i)
 			if(nondelim[i] && !nondelim[i+1] && nondelim[i+2])
 				nondelim[i+1] = 1;
@@ -334,9 +353,11 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 	for(i = 0; i < maxutflen - 1; ++i){
 		fprint(2, "%d", nondelim[i]);
 		++last->size;
-		last->width += runewidths[i];
+		if(nondelim[i])
+			last->width += runewidths[i];
 		if(!nondelim[i] && nondelim[i+1]){
 			/* a new column starts at i+1 */
+			last->width += tabwidth - (last->width % tabwidth);
 			last->next = (Column *)malloc(sizeof(Column));
 			last = last->next;
 			last->size = 0;
@@ -348,6 +369,9 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 
 	if(last == list)
 		return nil;	/* 1 column => not a table */
+
+	/* round columns' width to tabstop */
+	
 
 	return list;
 }
@@ -365,9 +389,15 @@ debugTable(void){
 	}
 }
 
+
+
 void
 writeTable(Biobufhdr *bp){
 	Row *row;
+	Column *col;
+	int i, w, consumed, pendingspaces;
+	char *c;
+	Rune r;
 
 	if(!table->columns)
 		table->columns = detectColumns(table->rows, table->nrows, table->maxutflen);
@@ -380,6 +410,61 @@ writeTable(Biobufhdr *bp){
 			row = row->next;
 		}
 		return;
+	}else{
+		while(row){
+			col = table->columns;
+
+			i = 0;
+			w = row->line->initialspaces - row->line->margin;
+			while(i < w){
+				if(i >= tabstop){
+					Bputc(bp, '\t');
+					i += tabstop;
+				}else{
+					Bputc(bp, ' ');
+					++i;
+				}
+				if(i > col->size){
+					w -= col->size;
+					i = 0;
+					col = col->next;
+				}
+			}
+
+			pendingspaces = 0;
+			w = 0;
+			c = row->line->content;
+			while(*c && col){
+				consumed = chartorune(&r, c);
+
+				if(r == ' ')
+					++pendingspaces;
+				else{
+					while(pendingspaces-- > 0){
+						Bputc(bp, ' ');
+						w += spcwidth;
+					}
+					Bputrune(bp, r);
+					w += runeWidth(r);
+				}
+
+
+				c += consumed;
+				if(i < col->size)
+					++i;
+				else{
+					w = col->width - w;
+					while(w > 0){
+						Bputc(bp, '\t');
+						w -= tabwidth;
+					}
+					i = 0;
+					pendingspaces = 0;
+					col = col->next;
+				}
+			}
+			row = row->next;
+		}
 	}
 
 
@@ -473,6 +558,12 @@ parseArguments(int argc, char **argv)
 	default:
 		usage(nil);
 	}ARGEND;
+	if(font){
+		zerowidth = runeWidth('0');
+		tabwidth = zerowidth * tabstop;
+		spcwidth = runeWidth(' ');
+		fprint(2, "zerowidth = %d tabwidth = %d\n", zerowidth, tabwidth);
+	}
 }
 
 #define INDENTATIONCOLLAPSED(l,p) (p && l->type != Empty && \
