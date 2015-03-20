@@ -282,9 +282,17 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 	runewidths = (int *)calloc(maxutflen, sizeof(int));
 	while(rows){
 		i = 0;
+		w = runeWidth(0x2003);
+		for(j=rows->line->margin; j < rows->line->initialspaces; ++j){
+			if(runewidths[i] < w)
+				runewidths[i] = w;
+			++i;
+		}
 		c = rows->line->content;
+//		fprint(2, "NEWLINE\n");
 		while(*c){
 			consumed = chartorune(&r, c);
+//			fprint(2, "found %C: ", r);
 			if(r == '\t'){
 				/* widths up to tabstop are at least 1em */
 				w = runeWidth(0x2003);
@@ -315,6 +323,9 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 			}else
 				++i;		/* already found a word character in i */
 			
+//			for(int k = 0; k < maxutflen; k++)
+//				fprint(2, "%d", nondelim[k]);
+//			fprint(2,"\n");
 			c += consumed;
 		}
 		rows = rows->next;
@@ -330,9 +341,9 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 	list->width = 0;
 	list->next = nil;
 	last = list;
-	fprint(2, "detectColumns: nondelim[");
+//	fprint(2, "detectColumns: nondelim[");
 	for(i = 0; i < maxutflen - 1; ++i){
-		fprint(2, "%d", nondelim[i]);
+//		fprint(2, "%d", nondelim[i]);
 		++last->size;
 		last->width += runewidths[i];
 		if(!nondelim[i] && nondelim[i+1]){
@@ -344,7 +355,7 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 			last->next = nil;
 		}
 	}
-	fprint(2, "%d]\n", nondelim[i]);
+//	fprint(2, "%d]\n", nondelim[i]);
 
 	if(last == list)
 		return nil;	/* 1 column => not a table */
