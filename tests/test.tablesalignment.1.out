@@ -26,7 +26,7 @@ letters in `bold' font.
 A prevailing indent distance is remembered between succes-
 sive indented paragraphs, and is reset to default value upon
 
-reaching a non-indented paragraph.  Default units for
+reaching a non-indented paragraph.	Default units for
 indents i are ens.
 
 The fonts are
@@ -66,18 +66,18 @@ troff(1), man(1)
 
 REQUESTS
 
-Request	Cause	If no		Explanation
+Request	Cause	If no	Explanation
 		Break	Argument
-.B t		no		t=n.t.l.*		Text t is `bold'.
-.BI t	no		t=n.t.l.		Join words of t alternating bold and
-							italic.
-.BR t	no		t=n.t.l.		Join words of t alternating bold and
-							Roman.
-.DT		no					Restore default tabs.
-.EE		yes					End displayed example
-.EX		yes					Begin displayed example
-.HP i	yes		i=p.i.*		Set prevailing indent to i. Begin para-
-							graph with hanging indent.
+.B t		no		t=n.t.l.*	Text t is `bold'.
+.BI t	no		t=n.t.l.	Join words of t alternating	bold and
+						italic.
+.BR t	no		t=n.t.l.	Join words of t alternating	bold and
+						Roman.
+.DT		no				Restore default tabs.
+.EE		yes				End displayed example
+.EX		yes				Begin displayed example
+.HP i	yes		i=p.i.*	Set prevailing indent to i.	Begin para-
+						graph with hanging indent.
 
 * n.t.l. = next text line; p.i. = prevailing indent
 

@@ -287,10 +287,12 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 	while(rows){
 		/* This implementation count initial spaces as 1em each
 		i = 0;
+		w = 0;
 		j = rows->line->initialspaces - rows->line->margin;
 		while(i < j){
-			if(runewidths[i] < zerowidth)
-				runewidths[i] = zerowidth;
+			w =+ zerowidth;
+			if(runewidths[i] < w)
+				runewidths[i] = w;
 			++i;
 		}
 		* but a simpler one just skip such spaces counting them
@@ -300,19 +302,28 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 		*/
 		i = rows->line->initialspaces - rows->line->margin;
 		c = rows->line->content;
-//		fprint(2, "NEWLINE\n");
+		w = 0;
 		while(*c){
 			consumed = chartorune(&r, c);
-//			fprint(2, "found %C: ", r);
 			
 			/* register rune width */
+			
+			/* TODO: fix width detection: this overestimates sizes since
+					it takes only the larger rune for each position.
+					We need something smarter, that at each rune position
+					associate the max width actually neaded to write that
+					position.
+			*/
+
 			if(r == '\t'){
 				/* widths up to tabstop are at least 1em */
-				for(j = i; j % tabstop > 0; ++j)
-					if(runewidths[j] < zerowidth)
-						runewidths[j] = zerowidth;
+				for(j = i; j % tabstop > 0; ++j){
+					w += zerowidth;
+					if(runewidths[j] < w)
+						runewidths[j] = w;
+				}
 			}else if(*c != '\n'){
-				w = runeWidth(r);
+				w += runeWidth(r);
 				if(runewidths[i] < w)
 					runewidths[i] = w;
 			}
@@ -336,9 +347,6 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 			}else
 				++i;		/* already found a word character in i */
 			
-//			for(int k = 0; k < maxutflen; k++)
-//				fprint(2, "%d", nondelim[k]);
-//			fprint(2,"\n");
 			c += consumed;
 		}
 		rows = rows->next;
@@ -354,15 +362,18 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 	list->width = 0;
 	list->next = nil;
 	last = list;
-//	fprint(2, "detectColumns: nondelim[");
+	w = 0;
 	for(i = 0; i < maxutflen - 1; ++i){
-//		fprint(2, "%d", nondelim[i]);
 		++last->size;
 		if(nondelim[i])
-			last->width += runewidths[i];
+			w = runewidths[i];
 		if(!nondelim[i] && nondelim[i+1]){
 			/* a new column starts at i+1 */
-			last->width += tabwidth - (last->width % tabwidth);
+			w -= runewidths[i - last->size + 1];
+			if(w > tabwidth - zerowidth && w <= tabwidth)
+				last->width = 2*tabwidth;
+			else
+				last->width = w + tabwidth - (w % tabwidth);
 			last->next = (Column *)malloc(sizeof(Column));
 			last = last->next;
 			last->size = 0;
@@ -370,13 +381,9 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 			last->next = nil;
 		}
 	}
-//	fprint(2, "%d]\n", nondelim[i]);
 
 	if(last == list)
 		return nil;	/* 1 column => not a table */
-
-	/* round columns' width to tabstop */
-	
 
 	return list;
 }
@@ -416,10 +423,16 @@ writeTable(Biobufhdr *bp){
 		}
 		return;
 	}else{
+
+		/* TODO: handle table indentation. If the first row has pending 
+				spaces, that is a left margin that we have to respect for
+				all other rows
+		*/
+
 		while(row){
 			col = table->columns;
 
-			debugLine(row->line, "writeTable");
+			//debugLine(row->line, "writeTable");
 			pendingspaces = row->line->initialspaces - row->line->margin;
 			while(col && pendingspaces >= col->size){
 				/* empty column at the beginning of line */
@@ -441,13 +454,6 @@ writeTable(Biobufhdr *bp){
 						w += tabwidth - w % tabwidth;
 						Bputc(bp, '\t');
 					}
-/*
-					w = col->width - w;
-					while(w > 0){
-						Bputc(bp, '\t');
-						w -= tabwidth;
-					}
-*/
 					i = 0;
 					w = 0;
 					pendingspaces = 0;
@@ -458,7 +464,6 @@ writeTable(Biobufhdr *bp){
 				if(r == ' ')
 					++pendingspaces;
 				else{
-//					fprint(2, "found %C, ps %d\n", r, pendingspaces);
 					while(pendingspaces > 0){
 						Bputc(bp, ' ');
 						w += spcwidth;
@@ -478,7 +483,7 @@ writeTable(Biobufhdr *bp){
 
 
 
-	debugTable();
+	//debugTable();
 }
 
 void
@@ -571,7 +576,6 @@ parseArguments(int argc, char **argv)
 		zerowidth = runeWidth('0');
 		tabwidth = zerowidth * tabstop;
 		spcwidth = runeWidth(' ');
-		fprint(2, "zerowidth = %d tabwidth = %d\n", zerowidth, tabwidth);
 	}
 }
 
@@ -628,7 +632,6 @@ main(int argc, char **argv)
 	LineHandler handleLine;
 
 	parseArguments(argc, argv);
-	//fprint(2, "tabstop = %d\n\n", tabstop);
 
 	/*	to keep code simple, use different logic
 		with or without font */
