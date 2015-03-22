@@ -117,6 +117,11 @@ setMargin(Line *l)
 			l->margin = prev->margin;
 	case Text:
 		i = 0;
+		if(!l->margin && !l->initialspaces){
+			while(i<levels)
+				margins[i++] = 0;
+			return;
+		}
 		while(!l->margin && i < levels){
 			if(margins[i] == 0){
 				setMarginSize(i, l->initialspaces);
