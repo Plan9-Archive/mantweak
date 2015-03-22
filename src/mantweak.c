@@ -143,13 +143,16 @@ setMargin(Line *l)
 	}
 }
 
+#define EXCLUDESTITLE(r) (islowerrune(r) || (r < Runeself && ispunct(r)))
+#define SUGGESTTABLE(r, p, p2) (isspacerune(r) && isspacerune(p) && \
+		p2 != '.')
 
 Line *
 readLine(Biobufhdr *bp)
 {
 	Line *l;
 	char *c;
-	Rune r, p;
+	Rune r, p, p2;
 	
 	if (c = Brdstr(bp, '\n', 0)) {
 		l = (Line *)malloc(sizeof(Line));
@@ -186,14 +189,16 @@ readLine(Biobufhdr *bp)
 							subsequent spaces 
 				Text = anything else
 			 */
-			r = 0; p = 0;
+			r = 0; p = 0; p2 = 0;
 			l->type = SectionTitle;
 			while(*c && l->type != TableLine){
 				c += chartorune(&r, c);
-				if (r == '\t' || (isspacerune(r) && isspacerune(p)))
+				if (r == '\t' || SUGGESTTABLE(r, p, p2))
 					l->type = TableLine;
-				else if(l->type == SectionTitle && islowerrune(r))
+				else if(l->type == SectionTitle &&
+						EXCLUDESTITLE(r))
 					l->type = Text;
+				p2 = p;
 				p = r;
 			}
 		}else
@@ -289,7 +294,7 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 		i = 0;
 		w = 0;
 		j = rows->line->initialspaces - rows->line->margin;
-		while(i < j){
+		while(i < j && i < maxutflen){
 			w =+ zerowidth;
 			if(runewidths[i] < w)
 				runewidths[i] = w;
@@ -303,7 +308,7 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 		i = rows->line->initialspaces - rows->line->margin;
 		c = rows->line->content;
 		w = 0;
-		while(*c){
+		while(*c && i < maxutflen){
 			consumed = chartorune(&r, c);
 			
 			/* register rune width */
@@ -317,7 +322,7 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 
 			if(r == '\t'){
 				/* widths up to tabstop are at least 1em */
-				for(j = i; j % tabstop > 0; ++j){
+				for(j = i; j < maxutflen && j % tabstop > 0; ++j){
 					w += zerowidth;
 					if(runewidths[j] < w)
 						runewidths[j] = w;
@@ -381,6 +386,9 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 			last->next = nil;
 		}
 	}
+
+	free(nondelim);
+	free(runewidths);
 
 	if(last == list)
 		return nil;	/* 1 column => not a table */

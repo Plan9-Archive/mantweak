@@ -25,8 +25,7 @@ letters in `bold' font.
 
 A prevailing indent distance is remembered between succes-
 sive indented paragraphs, and is reset to default value upon
-
-reaching a non-indented paragraph.	Default units for
+reaching a non-indented paragraph.  Default units for
 indents i are ens.
 
 The fonts are
