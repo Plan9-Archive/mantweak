@@ -12,7 +12,7 @@ int levels;
 int addnl;	/* -n */
 int tabstop;
 Font *font;	/* $font of -f font, but nil if -f does not have an path */
-int zerowidth;	/* if font!=nil, size in pixel of one "0" */
+int zerowidth;	/* if font!=nil, size in pixel of one '0' */
 int tabwidth;	/* if font!=nil, zerowidth * tabstop */
 int spcwidth;	/* if font!=nil, size in pixel of one ASCII space */
 
@@ -371,10 +371,11 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 		if(!nondelim[i] && nondelim[i+1]){
 			/* a new column starts at i+1 */
 			w -= runewidths[i - last->size + 1];
-			if(w > tabwidth - zerowidth && w <= tabwidth)
-				last->width = 2*tabwidth;
+			if(w % tabwidth > tabwidth - zerowidth)
+				w += 2 * tabwidth - w % tabwidth;
 			else
-				last->width = w + tabwidth - (w % tabwidth);
+				w += tabwidth - w % tabwidth;
+			last->width = w;
 			last->next = (Column *)malloc(sizeof(Column));
 			last = last->next;
 			last->size = 0;
