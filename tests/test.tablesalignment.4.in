@@ -1,0 +1,8 @@
+     FILES
+          $home/acme.dump  default file for Dump and Load; also where
+                           state is written if acme dies or is killed
+                           unexpectedly, e.g. by deleting its window.
+          /acme/*/guide    template files for applications
+          /acme/*/readme   informal documentation for applications
+          /acme/*/src      source for applications
+          /acme/*/mips     MIPS-specific binaries for applications
