@@ -63,6 +63,17 @@ int *margins;		/* spaces for each level of margin */
 Line *prev; 		/* previous line read */
 Table *table;		/* current table (if any) */
 
+/* ctype.h unicode missing http://www.unicode.org/charts/PDF/U2000.pdf
+ */
+int
+isunicodedash(Rune r){
+	return r >= 0x2010 && r <= 0x2015;
+}
+int
+isunicodebullet(Rune r){
+	return (r >= 0x2020 && r <= 0x2024) || r == 0x25d8 || r == 0x25e6;
+}
+
 void
 debugLine(Line *l, char *topic)
 {
@@ -96,7 +107,7 @@ setMarginSize(int level, int spaces) {
 		margins[level] -= level;
 }
 
-/*	updates margins[] and set l->mrgin according.
+/*	updates margins[] and set l->margin according.
  */
 void
 setMargin(Line *l)
@@ -273,7 +284,16 @@ updateTable(Line *line){
 		table->maxutflen = llen;
 }
 
-#define ISDELIMC(x) (isspace(*(x)) || ispunct(*(x)))
+int
+iscomparison(char c){
+	return c == '>' || c == '=' || c == '<';
+}
+
+/* generally spaces are used to delimit table columns, but 
+ * in man(6) we see that some punctuations (*) at column end
+ * suppress the insertion of spaces. 
+ */
+#define ISDELIMC(x) (isspace(*(x)) || *(x) == '*')
 #define ISDELIMR(x) (isspacerune(x))
 
 Column *
@@ -285,27 +305,16 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 	int i, j, w, consumed;
 	Column *list, *last;
 	
-	if(nrows == 1)
-		return nil;	/*  1 row => not a table */
+	if(nrows == 1){
+		c = rows->line->content;
+		chartorune(&r, c);
+		if(!ispunct(*c) && !isunicodedash(r) && !isunicodebullet(r))
+			return nil;	/*  1 row => not a table */
+	}
 
 	nondelim = (int *)calloc(maxutflen, sizeof(int));
 	runewidths = (int *)calloc(maxutflen, sizeof(int));
 	while(rows){
-		/* This implementation count initial spaces as 1em each
-		i = 0;
-		w = 0;
-		j = rows->line->initialspaces - rows->line->margin;
-		while(i < j && i < maxutflen){
-			w =+ zerowidth;
-			if(runewidths[i] < w)
-				runewidths[i] = w;
-			++i;
-		}
-		* but a simpler one just skip such spaces counting them
-		* as 0px. In some cases this could reduce the first column
-		* width a bit.
-		* Thus set i to index of the first non space character:
-		*/
 		i = rows->line->initialspaces - rows->line->margin;
 		c = rows->line->content;
 		w = 0;
@@ -313,14 +322,6 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 			consumed = chartorune(&r, c);
 			
 			/* register rune width */
-			
-			/* TODO: fix width detection: this overestimates sizes since
-					it takes only the larger rune for each position.
-					We need something smarter, that at each rune position
-					associate the max width actually neaded to write that
-					position.
-			*/
-
 			if(r == '\t'){
 				/* widths up to tabstop are at least 1em */
 				for(j = i; j < maxutflen && j % tabstop > 0; ++j){
@@ -328,11 +329,12 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 					if(runewidths[j] < w)
 						runewidths[j] = w;
 				}
-			}else if(*c != '\n'){
+			}else if(*c && *c != '\n'){
 				w += runeWidth(r);
 				if(runewidths[i] < w)
 					runewidths[i] = w;
 			}
+
 			/* register if rune at i is not a delimiter */
 			if(nondelim[i] == 0){
 				if(consumed == 1){
@@ -358,7 +360,7 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 		rows = rows->next;
 	}
 
-	if(nrows == 2)	/* 2 rows => cannot detect one space delim */
+	if(nrows < 3)	/* 1 - 2 rows => cannot detect one space delim */
 		for(i = 0; i < maxutflen - 2; ++i)
 			if(nondelim[i] && !nondelim[i+1] && nondelim[i+2])
 				nondelim[i+1] = 1;
@@ -422,6 +424,7 @@ writeTable(Biobufhdr *bp){
 
 	if(!table->columns)
 		table->columns = detectColumns(table->rows, table->nrows, table->maxutflen);
+
 	row = table->rows;
 	if(!table->columns){
 		/* not a table */
