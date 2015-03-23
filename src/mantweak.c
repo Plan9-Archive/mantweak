@@ -70,7 +70,6 @@ debugLine(Line *l, char *topic)
 	fprint(2, "l->content		%s", l->content);
 	fprint(2, "l->margin		%d\n", l->margin);
 	fprint(2, "l->len			%d\n", l->len);
-	//fprint(2, "l->level			%d\n", l->level);
 	fprint(2, "l->type		%d\n", l->type);
 	fprint(2, "l->initialspaces	%d\n", l->initialspaces);
 		for(int i = 0; i < levels; ++i)
@@ -208,7 +207,6 @@ readLine(Biobufhdr *bp)
 			}
 		}else
 			l->initialspaces = 0;
-		//debugLine(l, "readLine");
 	} else
 		l = nil;
 		
@@ -255,8 +253,6 @@ updateTable(Line *line){
 	int llen;
 
 	assert(line->type == TableLine);
-
-	//debugLine(line, "updateTable");
 
 	newRow = (Row *)malloc(sizeof(Row));
 	newRow->line = line;
@@ -445,7 +441,6 @@ writeTable(Biobufhdr *bp){
 		while(row){
 			col = table->columns;
 
-			//debugLine(row->line, "writeTable");
 			pendingspaces = row->line->initialspaces - row->line->margin;
 			while(col && pendingspaces >= col->size){
 				/* empty column at the beginning of line */
@@ -493,10 +488,6 @@ writeTable(Biobufhdr *bp){
 			row = row->next;
 		}
 	}
-
-
-
-	//debugTable();
 }
 
 void
