@@ -462,7 +462,7 @@ writeTable(Biobufhdr *bp){
 			c = row->line->content;
 			while(*c && col){
 
-				if(i == col->size){
+				if(i == col->size && col->next){
 					while(w < col->width){
 						w += tabwidth - w % tabwidth;
 						Bputc(bp, '\t');

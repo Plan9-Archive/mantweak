@@ -1,0 +1,138 @@
+
+TBL(1)                                                     TBL(1)
+
+NAME
+
+tbl - format tables for nroff or troff
+
+SYNOPSIS
+
+tbl [ file ... ]
+
+DESCRIPTION
+
+Tbl is a preprocessor for formatting tables for nroff or
+troff(1). The input files are copied to the standard output,
+except for segments of the form
+
+	 .TS
+	 options ;
+	 format .
+	 data
+	 .T&
+	 format .
+	 data
+	 . . .
+	 .TE
+
+which describe tables and are replaced by troff requests to
+lay out the tables.  If no arguments are given, tbl reads
+the standard input.
+
+The (optional) options line is terminated by a semicolon and
+contains one or more of
+
+	center		center the table; default is left-adjust
+	expand		make table as wide as current line length
+	box
+	doublebox		enclose the table in a box or double box
+	allbox		enclose every item in a box
+	tab(x)		use x to separate input items; default is
+				tab
+	linesize(n)	set rules in n-point type
+	delim(xy)		recognize x and y as eqn(1) delimiters
+
+Each line, except the last, of the obligatory format
+describes one row of the table.  The last line describes all
+rows until the next .T&, where the format changes, or the
+end of the table at .TE.  A format is specified by key let-
+ters, one per column, either upper or lower case:
+
+	L	Left justify: the default for columns without for-
+		mat keys.
+	R	Right justify.
+	C	Center.
+	N	Numeric: align at decimal point (inferred for
+		integers) or at `\&'.
+	S	Span: extend previous column across this one.
+	A	Alphabetic: left-aligned within column, widest
+		item centered, indented relative to L rows.
+	^	Vertical span: continue item from previous row
+		into this row.
+	-	Draw a horizontal rule in this column.
+	=	Draw a double horizontal rule in this column.
+
+Key letters may be followed by modifiers, also either case:
+
+	|		Draw vertical rule between columns.
+	||		Draw a double vertical rule between columns.
+	n		Gap between column is n ens wide.  Default is 3.
+	Ffont	Use specified font. B and I mean FB and FI.
+	T		Begin vertically-spanned item at top row of
+			range; default is vertical centering (with `^').
+	Pn		Use point size n.
+	Vn		Use n-point vertical spacing in text block;
+			signed n means relative change.
+	W(n)		Column width as a troff width specification.
+			Parens are optional if n is a simple integer.
+	E		Equalize the widths of all columns marked E.
+
+Each line of data becomes one row of the table; tabs sepa-
+
+rate items.  Lines beginning with `.'  are troff requests.
+Certain special data items are recognized:
+
+	_	Draw a horizontal rule in this column.
+	=	Draw a double horizontal rule in this column.  A
+		data line consisting of a single `_' or `=' draws
+		the rule across the whole table.
+	\_	Draw a rule only as wide as the contents of the
+		column.
+	\Rx	Repeat character x across the column.
+	\^	Span the previous item in this column down into
+		this row.
+	T{	The item is a text block to be separately format-
+		ted by troff and placed in the table.  The block
+		continues to the next line beginning with T}.  The
+		remainder of the data line follows at that point.
+
+When it is used in a pipeline with eqn, the tbl command
+should be first, to minimize the volume of data passed
+through pipes.
+
+EXAMPLES
+
+Let <tab> represent a tab (which should be typed as a gen-
+uine tab).
+.TS
+c s s
+c c s
+c c c
+l n n.
+Household Population
+Town<tab>Households
+<tab>Number<tab>Size
+Bedminster<tab>789<tab>3.26
+Bernards Twp.<tab>3087<tab>3.74
+Bernardsville<tab>2018<tab>3.30
+.TE
+
+	Household Population
+
+Town         Households
+			Number   Size
+Bedminster	  789    3.26
+Bernards Twp.	 3087    3.74
+Bernardsville	 2018    3.30
+
+SOURCE
+
+/sys/src/cmd/tbl
+
+SEE ALSO
+
+troff(1), eqn(1), doctype(1)
+M. E. Lesk and L. L. Cherry, ``TBL-a Program to Format
+Tables'', Unix Research System Programmer's Manual, Tenth
+Edition, Volume 2.
+
