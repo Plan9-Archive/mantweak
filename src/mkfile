@@ -4,7 +4,6 @@ TARG = 	mantweak\
 
 
 BIN=/$objtype/bin/mantweak
-#HFILES=dhcp.h arp.h glob.h icmp.h telnet.h
 
 UPDATE=\
 	mkfile\
