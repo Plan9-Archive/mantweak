@@ -83,18 +83,16 @@ debugLine(Line *l, char *topic)
 	fprint(2, "l->len			%d\n", l->len);
 	fprint(2, "l->type		%d\n", l->type);
 	fprint(2, "l->initialspaces	%d\n", l->initialspaces);
-		for(int i = 0; i < levels; ++i)
-			fprint(2, "margins[%d]		%d\n", i, margins[i]);
-		fprint(2, "\n");
+	for(int i = 0; i < levels; ++i)
+		fprint(2, "margins[%d]		%d\n", i, margins[i]);
+	fprint(2, "\n");
 }
-
 
 void 
 freeLine(Line * ln) {
 	free(ln->raw);
 	free(ln);
 }
-
 
 void
 setMarginSize(int level, int spaces) {
@@ -284,11 +282,6 @@ updateTable(Line *line){
 		table->maxutflen = llen;
 }
 
-int
-iscomparison(char c){
-	return c == '>' || c == '=' || c == '<';
-}
-
 /* generally spaces are used to delimit table columns, but 
  * in man(6) we see that some punctuations (*) at column end
  * suppress the insertion of spaces. 
@@ -329,7 +322,7 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 					if(runewidths[j] < w)
 						runewidths[j] = w;
 				}
-			}else if(*c && *c != '\n'){
+			}else if(*c != '\n'){
 				w += runeWidth(r);
 				if(runewidths[i] < w)
 					runewidths[i] = w;
@@ -341,9 +334,9 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 					if(*c == '\t')
 						/* we have a few spaces to skip */
 						i += tabstop - i % tabstop;
-					else if(ispunct(*c) && ISDELIMC(c+1))
-						/*	punctuations are delimiters only
-							before non delimiters
+					else if(*c == '*' && ISDELIMC(c+1))
+						/*	'*' are delimiters only
+							before non delimiters (see man(6))
 							NOTE: we should check the next 
 							rune too, but this is good enough
 						*/
