@@ -158,7 +158,8 @@ setMargin(Line *l)
 
 #define EXCLUDESTITLE(r) (islowerrune(r) || (r < Runeself && ispunct(r)))
 #define SUGGESTTABLE(r, p, p2) (isspacerune(r) && isspacerune(p) && \
-		p2 != '.')
+		p2 != '.' && \
+		(p2 != '\'' || (prev && prev->type == TableLine)))
 
 Line *
 readLine(Biobufhdr *bp)
@@ -282,6 +283,17 @@ updateTable(Line *line){
 		table->maxutflen = llen;
 }
 
+void
+debugIntArray(char *name, int len, int *arr){
+	int i;
+	fprint(2, "%s: [", name);
+	for(i = 0; i<len; ++i){
+		fprint(2, "%d,", arr[i]);
+	}
+	fprint(2, "]\n");
+}
+
+
 /* generally spaces are used to delimit table columns, but 
  * in man(6) we see that some punctuations (*) at column end
  * suppress the insertion of spaces. 
@@ -293,9 +305,10 @@ Column *
 detectColumns(Row *rows, int nrows, int maxutflen){
 	int *nondelim;	/*	1 => not a column delimiter */
 	int *runewidths;	/*	max pixel width of runes at i at each row */
+	int *spccounts;	/*	max spaces before each index */
 	Rune r;
 	char *c;
-	int i, j, w, consumed;
+	int i, j, w, consumed, s;
 	Column *list, *last;
 	
 	if(nrows == 1){
@@ -307,8 +320,12 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 
 	nondelim = (int *)calloc(maxutflen, sizeof(int));
 	runewidths = (int *)calloc(maxutflen, sizeof(int));
+	spccounts = (int *)calloc(maxutflen, sizeof(int));
 	while(rows){
 		i = rows->line->initialspaces - rows->line->margin;
+		s = i;
+		while(s > 0)
+			spccounts[s-1] = s--;
 		c = rows->line->content;
 		w = 0;
 		while(*c && i < maxutflen){
@@ -327,27 +344,46 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 				if(runewidths[i] < w)
 					runewidths[i] = w;
 			}
+			
+			/* count spaces */
+			if(consumed == 1){
+				if(*c == '\t'){
+					/* we have a few spaces to skip */
+					for(j = i; j % tabstop; ++j){
+						if(spccounts[j] < ++s)
+							spccounts[j] = s;
+					}
+				}else if(ISDELIMC(c)){
+					if(spccounts[i] < ++s)
+						spccounts[i] = s;
+				}else
+					s = 0;
+			}else if(ISDELIMR(r)){
+				if(spccounts[i] < ++s)
+					spccounts[i] = s;
+			}else
+				s = 0;
 
 			/* register if rune at i is not a delimiter */
 			if(nondelim[i] == 0){
 				if(consumed == 1){
-					if(*c == '\t')
+					if(*c == '\t'){
 						/* we have a few spaces to skip */
 						i += tabstop - i % tabstop;
-					else if(*c == '*' && ISDELIMC(c+1))
+					}else if(*c == '*' && ISDELIMC(c+1)){
 						/*	'*' are delimiters only
 							before non delimiters (see man(6))
 							NOTE: we should check the next 
 							rune too, but this is good enough
 						*/
 						nondelim[i++] = 1;
-					else
+					}else 
 						nondelim[i++] = !ISDELIMC(c);
-				}else
+				}else 
 					nondelim[i++] = !ISDELIMR(r);
 			}else
 				++i;		/* already found a word character in i */
-			
+
 			c += consumed;
 		}
 		rows = rows->next;
@@ -368,14 +404,11 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 		++last->size;
 		if(nondelim[i])
 			w = runewidths[i];
-		if(!nondelim[i] && nondelim[i+1]){
+		if(!nondelim[i] && nondelim[i+1] && spccounts[i] > 1){// 
 			/* a new column starts at i+1 */
-			w -= runewidths[i - last->size + 1];
-			if(w % tabwidth > tabwidth - zerowidth)
-				w += 2 * tabwidth - w % tabwidth;
-			else
-				w += tabwidth - w % tabwidth;
-			last->width = w;
+			w -= runewidths[i - last->size];
+			last->width = w - w % tabwidth;
+			last->width += tabwidth;
 			last->next = (Column *)malloc(sizeof(Column));
 			last = last->next;
 			last->size = 0;
@@ -383,15 +416,17 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 			last->next = nil;
 		}
 	}
-
+	
 	free(nondelim);
 	free(runewidths);
+	free(spccounts);
 
 	if(last == list)
 		return nil;	/* 1 column => not a table */
 
 	return list;
 }
+
 
 void
 debugTable(void){
@@ -429,12 +464,6 @@ writeTable(Biobufhdr *bp){
 		}
 		return;
 	}else{
-
-		/* TODO: handle table indentation. If the first row has pending 
-				spaces, that is a left margin that we have to respect for
-				all other rows
-		*/
-
 		while(row){
 			col = table->columns;
 

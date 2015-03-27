@@ -35,7 +35,7 @@ contains one or more of
 	center		center the table; default is left-adjust
 	expand		make table as wide as current line length
 	box
-	doublebox		enclose the table in a box or double box
+	doublebox	enclose the table in a box or double box
 	allbox		enclose every item in a box
 	tab(x)		use x to separate input items; default is
 				tab
@@ -73,12 +73,11 @@ Key letters may be followed by modifiers, also either case:
 	Pn		Use point size n.
 	Vn		Use n-point vertical spacing in text block;
 			signed n means relative change.
-	W(n)		Column width as a troff width specification.
+	W(n)	Column width as a troff width specification.
 			Parens are optional if n is a simple integer.
 	E		Equalize the widths of all columns marked E.
 
 Each line of data becomes one row of the table; tabs sepa-
-
 rate items.  Lines beginning with `.'  are troff requests.
 Certain special data items are recognized:
 

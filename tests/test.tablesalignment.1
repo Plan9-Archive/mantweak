@@ -1,4 +1,5 @@
 #!/bin/rc
+font=/lib/font/bit/dejavusans/unicode.18.font
 if(result=`{cmp -L <{cat $0.in | mantweak -l 2 -n -t 4 } <{cat $0.out}}){}
 if not {
 	echo $0 failed: $"result;

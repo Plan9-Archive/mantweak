@@ -18,9 +18,9 @@ follow them.  Here are a few:
 
 •	no tabs expanded to spaces.
 
-•	surround a binary	operator (particular a low precedence
-	one) with spaces;	don't try to write the most compact
-	code possible but	rather the most readable.
+•	surround a binary operator (particular a low precedence
+	one) with spaces; don't try to write the most compact
+	code possible but rather the most readable.
 
 •	parenthesize expressions involving arithmetic and bit-
 	wise operators; otherwise don't parenthesize heavily
