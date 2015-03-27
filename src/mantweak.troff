@@ -1,0 +1,72 @@
+.TH MANTWEAK 1
+.SH NAME
+mantweak \- tweak textual rendering of manual pages
+.SH SYNOPSIS
+.B mantweak
+[
+.B -n 
+] [
+.B -t
+.I tabstop 
+] [
+.B -f
+.I fontfile
+] [
+.B -l
+.I levels
+]
+.SH DESCRIPTION
+.I Mantweak
+applies a set of heuristics to its standard input, improving the textual 
+rendering of manual pages as produced by
+.I nroff.
+It is designed to reduce the horizontal space required by the
+manual page in text terminal and fix the rendering of tagged 
+paragraphs and tables in variable-width fonts.
+.P
+Without options, it removes the first indentation level and adapts
+tables to the (variable-width) font defined in 
+.I $font,
+assuming tab stops 
+.I $tabstop
+zeroes wide (8 by default).
+.P
+Option
+.B -f
+overrides the effects of 
+.I $font
+environment variable, completelly disabling font related transformations if no
+.I fontfile
+is provided.
+.P
+Option
+.B -t
+set the width ot tab stops to 
+.I tabstop.
+.P
+Option
+.B -l
+set to 
+.I levels
+the number of indentation levels to be dropped.
+.P
+Option 
+.B -n
+introduces an empty line whenever removing a level of indentation
+collapse two subsequent paragraphs.
+.SH EXAMPLES
+.TP
+.L
+man 1 man | mantweak -f
+Drops the left margin in man(1).
+.TP
+.L
+man 1 man |mantweak -l 2 -n
+Drops the left margin and the first level of indentation, adding a 
+newline after each section's title. Adapts tables to the font
+in 
+.I $font
+.SH SOURCE
+.B mantweak.c
+.SH SEE ALSO
+.IR troff (1)
