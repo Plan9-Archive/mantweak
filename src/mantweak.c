@@ -19,7 +19,7 @@ int spcwidth;	/* if font!=nil, size in pixel of one ASCII space */
 enum LineType 
 {
 	Empty,			/* only spaces, tabs or newline */
-	Text,
+	ParagraphLine,
 	SectionTitle,
 	TableLine
 };
@@ -123,7 +123,7 @@ setMargin(Line *l)
 	case TableLine:
 		if(prev && prev->type == TableLine)
 			l->margin = prev->margin;
-	case Text:
+	case ParagraphLine:
 		i = 0;
 		if(!l->margin && !l->initialspaces){
 			while(i<levels)
@@ -200,7 +200,7 @@ readLine(Biobufhdr *bp)
 			/*	SectionTitles = lines without lowercase runes 
 				TableLine =	lines with tabs or multiple 
 							subsequent spaces 
-				Text = anything else
+				ParagraphLine = anything else
 			 */
 			r = 0; p = 0; p2 = 0;
 			l->type = SectionTitle;
@@ -210,7 +210,7 @@ readLine(Biobufhdr *bp)
 					l->type = TableLine;
 				else if(l->type == SectionTitle &&
 						EXCLUDESTITLE(r))
-					l->type = Text;
+					l->type = ParagraphLine;
 				p2 = p;
 				p = r;
 			}
@@ -423,7 +423,7 @@ writeTable(Biobufhdr *bp){
 	if(!table->columns){
 		/* not a table */
 		while(row){
-			row->line->type = Text;
+			row->line->type = ParagraphLine;
 			writeLine(bp, row->line);
 			row = row->next;
 		}
