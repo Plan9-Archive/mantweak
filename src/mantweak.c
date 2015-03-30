@@ -314,7 +314,8 @@ detectColumns(Row *rows, int nrows, int maxutflen){
 	if(nrows == 1){
 		c = rows->line->content;
 		chartorune(&r, c);
-		if(!ispunct(*c) && !isunicodedash(r) && !isunicodebullet(r))
+		if(!ispunct(*c) && !isdigit(*c) && 
+			!isunicodedash(r) && !isunicodebullet(r))
 			return nil;	/*  1 row => not a table */
 	}
 

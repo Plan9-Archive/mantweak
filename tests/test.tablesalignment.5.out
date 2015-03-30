@@ -1,0 +1,27 @@
+DESCRIPTION
+
+Factotum is a user-level file system that acts as the
+authentication agent for a user.  It does so by managing a
+set of keys. A key is a collection of information used to
+authenticate a particular action.  Stored as a list of
+attribute=value pairs, a key typically contains a user, an
+authentication domain, a protocol, and some secret data.
+
+The RPC Protocol
+  Authentication is performed by
+
+	1)	opening rpc
+
+	2)	setting up the protocol and key to be used (see the
+		start RPC below),
+
+	3)	shuttling messages back and forth between factotum and
+		the other party (see the read and write RPC's) until
+		done
+
+	4)	if successful, reading back an AuthInfo structure (see
+		authsrv(2)).
+
+  The RPC protocol is normally embodied by one of the routines
+  in auth(2). We describe it here should anyone want to extend
+  the library.
